@@ -145,19 +145,29 @@ void initSigGenAndLED(void)
 	
 	/* Signal Generator init */
 	GPIO_InitStruct.Pin = GPIO_PIN_4;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  // GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FAST;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 }
 
+uint8_t lastVal = 0;
+
 void pollForRisingEdge(void)
 {
-	// While loop in main or in here??
-	while(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4) == GPIO_PIN_RESET){}
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
-	while(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4) == GPIO_PIN_SET){}
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+	while(1)
+	{
+		GPIO_PinState readVal = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4);
+		if (readVal == GPIO_PIN_RESET && readVal != lastVal){
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+			lastVal = 0;
+		}
+		if (readVal == GPIO_PIN_SET && readVal != lastVal){
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+			lastVal = 1;
+		}
+	}
 }
 
 void initInterrupt(void)
@@ -168,7 +178,14 @@ void initInterrupt(void)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+	if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4) == 0)
+	{
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+	}
+	else
+	{
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+	}
 }
 
 void EXTI4_IRQHandler(void)
@@ -189,7 +206,7 @@ int main(void)
   BSP_Init();
 	
 	initSigGenAndLED();
-	initInterrupt();
+	// initInterrupt();
 
 	#ifdef NUCLEO_USE_USART
   /* Transmit the initial message to the PC via UART */
@@ -208,11 +225,12 @@ int main(void)
 	
 	/*Initialize the motor parameters */
 	Motor_Param_Reg_Init();
+	
+	pollForRisingEdge();
   
   /* Infinite loop */
   while (1)
   {
-		// pollForRisingEdge();
 
 #ifdef TEST_MOTOR		
 
