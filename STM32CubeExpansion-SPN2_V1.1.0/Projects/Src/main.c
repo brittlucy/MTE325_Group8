@@ -87,19 +87,12 @@ __IO uint16_t uhADCxConvertedValue = 0;
 //static void SystemClock_Config(void);
 static void Error_Handler(void);
 uint16_t Read_ADC(void);
+void initSwitchLED(void);
+void switchLED(void);
 
-/**
-  * @brief The FW main module
-  */
-int main(void)
+/* LAB 1 CODE */
+void initSwitchLED(void)
 {
-  /* NUCLEO board initialization */
-	/* Init for UART, ADC, GPIO and SPI */
-  NUCLEO_Board_Init();
-  
-  /* X-NUCLEO-IHM02A1 initialization */
-  BSP_Init();
-	
 	GPIO_InitTypeDef GPIO_InitStruct;
 
 	/* Init switch */
@@ -115,6 +108,32 @@ int main(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FAST;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+}
+
+void switchLED(void)
+{
+	GPIO_PinState readVal = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10);
+		if (readVal == GPIO_PIN_RESET){
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+		}
+		if (readVal == GPIO_PIN_SET){
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+		}
+}
+
+/**
+  * @brief The FW main module
+  */
+int main(void)
+{
+  /* NUCLEO board initialization */
+	/* Init for UART, ADC, GPIO and SPI */
+  NUCLEO_Board_Init();
+  
+  /* X-NUCLEO-IHM02A1 initialization */
+  BSP_Init();
+	
+	initSwitchLED();
 
 	#ifdef NUCLEO_USE_USART
   /* Transmit the initial message to the PC via UART */
@@ -137,13 +156,7 @@ int main(void)
   /* Infinite loop */
   while (1)
   {
-		GPIO_PinState readVal = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10);
-		if (readVal == GPIO_PIN_RESET){
-			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
-		}
-		if (readVal == GPIO_PIN_SET){
-			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
-		}
+		switchLED();
 
 #ifdef TEST_MOTOR		
 
