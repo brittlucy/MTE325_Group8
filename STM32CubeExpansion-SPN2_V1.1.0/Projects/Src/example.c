@@ -267,7 +267,7 @@ uint32_t pow(uint8_t base, uint8_t exponent)
   * @param  GPIO_Pin: Specifies the port pin connected to corresponding EXTI line.
   * @retval None
   */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+/*void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   switch (GPIO_Pin)
   {
@@ -281,7 +281,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     BSP_L6470_FlagEventManager();
     break;
   }
-}
+}*/
 
 /**
   * @}

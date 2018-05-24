@@ -87,8 +87,17 @@ __IO uint16_t uhADCxConvertedValue = 0;
 //static void SystemClock_Config(void);
 static void Error_Handler(void);
 uint16_t Read_ADC(void);
+
+// Lab 1
 void initSwitchLED(void);
 void switchLED(void);
+
+// Lab 2
+void initSigGenAndLED(void);
+void pollForRisingEdge(void);
+void initInterrupt(void);
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
+void EXTI4_IRQHandler(void);
 
 /* LAB 1 CODE */
 void initSwitchLED(void)
@@ -121,6 +130,52 @@ void switchLED(void)
 		}
 }
 
+/* LAB 2 Code */
+
+void initSigGenAndLED(void)
+{
+	GPIO_InitTypeDef GPIO_InitStruct;
+	
+	/* LED init */
+	GPIO_InitStruct.Pin = GPIO_PIN_6;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FAST;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+	
+	/* Signal Generator init */
+	GPIO_InitStruct.Pin = GPIO_PIN_4;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FAST;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+}
+
+void pollForRisingEdge(void)
+{
+	// While loop in main or in here??
+	while(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4) == GPIO_PIN_RESET){}
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+	while(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4) == GPIO_PIN_SET){}
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+}
+
+void initInterrupt(void)
+{
+	HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(EXTI4_IRQn);
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+}
+
+void EXTI4_IRQHandler(void)
+{
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_4);
+}
+
 /**
   * @brief The FW main module
   */
@@ -133,7 +188,8 @@ int main(void)
   /* X-NUCLEO-IHM02A1 initialization */
   BSP_Init();
 	
-	initSwitchLED();
+	initSigGenAndLED();
+	initInterrupt();
 
 	#ifdef NUCLEO_USE_USART
   /* Transmit the initial message to the PC via UART */
@@ -156,7 +212,7 @@ int main(void)
   /* Infinite loop */
   while (1)
   {
-		switchLED();
+		// pollForRisingEdge();
 
 #ifdef TEST_MOTOR		
 
