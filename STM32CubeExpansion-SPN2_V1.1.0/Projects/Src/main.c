@@ -32,6 +32,7 @@
   ******************************************************************************
   */
 #include "xnucleoihm02a1.h"
+#include "params.h"
 #include "example.h"
 #include "example_usart.h"
 #include "stm32f4xx_hal_adc.h"
@@ -170,13 +171,13 @@ void pollForRisingEdge(void)
 	}
 }
 
-void initInterrupt(void)
+void initInterruptEXTI4(void)
 {
 	HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
 	HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 }
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+/*void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4) == 0)
 	{
@@ -186,11 +187,171 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	{
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
 	}
-}
+}*/
 
 void EXTI4_IRQHandler(void)
 {
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_4);
+}
+
+/* LAB 3 CODE */
+
+void initLimitSwitches(void)
+{
+	GPIO_InitTypeDef GPIO_InitStruct;
+	
+	/* Switch 1 init */
+	GPIO_InitStruct.Pin = GPIO_PIN_4;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FAST;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+	
+	/* Switch 2 init */
+	GPIO_InitStruct.Pin = GPIO_PIN_6;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FAST;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+	
+	/* Init LED for testing */
+	GPIO_InitStruct.Pin = GPIO_PIN_10;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FAST;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+}
+
+void initInterruptEXTI9_5(void)
+{
+	HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+}
+
+void EXTI9_5_IRQHandler(void)
+{
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_6);
+}
+
+#define DELAY_1   1000		//!< Delay time 1st option
+#define DELAY_2   2500		//!< Delay time 2nd option
+#define DELAY_3   10000   //!< Delay time 3rd option
+uint32_t Speed;
+uint8_t board, device;
+
+uint8_t id;
+
+StepperMotorBoardHandle_t *StepperMotorBoardHandle;
+MotorParameterData_t *MotorParameterDataGlobal, *MotorParameterDataSingle;
+
+void moveMotors(void)
+{
+  #ifdef NUCLEO_USE_USART
+  USART_Transmit(&huart2, "Initial values for registers:\n\r");
+  USART_PrintAllRegisterValues();
+  #endif
+
+  /* Setup each X-NUCLEO-IHM02A1 Expansion Board ******************************/
+  
+  /* Get the parameters for the motor connected with the 1st stepper motor driver of the 1st stepper motor expansion board */
+  MotorParameterDataGlobal = GetMotorParameterInitData();
+  
+  for (id = 0; id < EXPBRD_MOUNTED_NR; id++)
+  {
+    StepperMotorBoardHandle = BSP_GetExpansionBoardHandle(EXPBRD_ID(id));
+    MotorParameterDataSingle = MotorParameterDataGlobal+(id*L6470DAISYCHAINSIZE);
+    StepperMotorBoardHandle->Config(MotorParameterDataSingle);
+  }
+  
+  #ifdef NUCLEO_USE_USART
+  USART_Transmit(&huart2, "Custom values for registers:\n\r");
+  USART_PrintAllRegisterValues();
+  #endif
+  
+  /****************************************************************************/
+	
+	for (board = EXPBRD_ID(0); board <= EXPBRD_ID(EXPBRD_MOUNTED_NR-1); board++)
+  {
+    
+    for (device = L6470_ID(0); device <= L6470_ID(L6470DAISYCHAINSIZE-1); device++)
+    {
+      /* Get the parameters for the motor connected with the actual stepper motor driver of the actual stepper motor expansion board */
+      MotorParameterDataSingle = MotorParameterDataGlobal+((board*L6470DAISYCHAINSIZE)+device);
+      
+      /* Set Speed */
+      Speed = Step_s_2_Speed(MotorParameterDataSingle->speed);
+      
+      /* Prepare the stepper driver to be ready to perform a command */
+      StepperMotorBoardHandle->StepperMotorDriverHandle[device]->Command->PrepareRun(device, L6470_DIR_FWD_ID, Speed);
+    }
+    
+    StepperMotorBoardHandle->Command->PerformPreparedApplicationCommand();
+  }
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	if (GPIO_Pin == GPIO_PIN_4 || GPIO_Pin == GPIO_PIN_6)
+	{
+		// Stop motors
+		for (board = EXPBRD_ID(0); board <= EXPBRD_ID(EXPBRD_MOUNTED_NR-1); board++)
+		{
+			
+			for (device = L6470_ID(0); device <= L6470_ID(L6470DAISYCHAINSIZE-1); device++)
+			{
+				/* Prepare the stepper driver to be ready to perform a command */
+				StepperMotorBoardHandle->StepperMotorDriverHandle[device]->Command->PrepareHardHiZ(device);
+			}
+			
+			StepperMotorBoardHandle->Command->PerformPreparedApplicationCommand();
+		}
+		
+		// Wait
+		for (int i = 0; i < 100; i++){}
+			
+		// Reverse direction
+		for (board = EXPBRD_ID(0); board <= EXPBRD_ID(EXPBRD_MOUNTED_NR-1); board++)
+		{
+			
+			for (device = L6470_ID(0); device <= L6470_ID(L6470DAISYCHAINSIZE-1); device++)
+			{
+				/* Get the parameters for the motor connected with the actual stepper motor driver of the actual stepper motor expansion board */
+				MotorParameterDataSingle = MotorParameterDataGlobal+((board*L6470DAISYCHAINSIZE)+device);
+				
+				/* Set Speed */
+				Speed = Step_s_2_Speed(MotorParameterDataSingle->speed);
+				
+				eL6470_DirId_t newDir;
+				if (GPIO_Pin == GPIO_PIN_4)
+				{
+					newDir = L6470_DIR_FWD_ID;
+				}
+				else
+				{
+					newDir = L6470_DIR_REV_ID;
+				}
+				
+				/* Prepare the stepper driver to be ready to perform a command */
+				StepperMotorBoardHandle->StepperMotorDriverHandle[device]->Command->PrepareRun(device, newDir, Speed);
+			}
+			
+			StepperMotorBoardHandle->Command->PerformPreparedApplicationCommand();
+		}
+		
+		/*for (board = EXPBRD_ID(0); board <= EXPBRD_ID(EXPBRD_MOUNTED_NR-1); board++)
+		{
+			
+			for (device = L6470_ID(0); device <= L6470_ID(L6470DAISYCHAINSIZE-1); device++)
+			{
+				// Prepare the stepper driver to be ready to perform a commandS
+				StepperMotorBoardHandle->StepperMotorDriverHandle[device]->Command->PrepareHardHiZ(device);
+			}
+			
+			StepperMotorBoardHandle->Command->PerformPreparedApplicationCommand();
+		}*/
+
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_RESET);
+	}
 }
 
 /**
@@ -205,8 +366,13 @@ int main(void)
   /* X-NUCLEO-IHM02A1 initialization */
   BSP_Init();
 	
-	initSigGenAndLED();
-	// initInterrupt();
+	// initSigGenAndLED();
+	initLimitSwitches();
+	
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_SET);
+	
+	initInterruptEXTI4();
+	initInterruptEXTI9_5();
 
 	#ifdef NUCLEO_USE_USART
   /* Transmit the initial message to the PC via UART */
@@ -226,7 +392,8 @@ int main(void)
 	/*Initialize the motor parameters */
 	Motor_Param_Reg_Init();
 	
-	pollForRisingEdge();
+	// pollForRisingEdge();
+	moveMotors();
   
   /* Infinite loop */
   while (1)
