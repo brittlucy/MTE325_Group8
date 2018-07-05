@@ -233,6 +233,9 @@ void EXTI9_5_IRQHandler(void)
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_6);
 }
 
+#define AMP_SPEED_FACTOR 1
+#define MPR_4     4			  //!< 4 Motor Movements Per Revolution
+#define MPR_8     8			  //!< 8 Motor Movements Per Revolution
 #define DELAY_1   1000		//!< Delay time 1st option
 #define DELAY_2   2500		//!< Delay time 2nd option
 #define DELAY_3   10000   //!< Delay time 3rd option
@@ -279,7 +282,7 @@ void moveMotors(void)
       MotorParameterDataSingle = MotorParameterDataGlobal+((board*L6470DAISYCHAINSIZE)+device);
       
       /* Set Speed */
-      Speed = Step_s_2_Speed(MotorParameterDataSingle->speed);
+      Speed = Step_s_2_Speed(MotorParameterDataSingle->speed) * AMP_SPEED_FACTOR;
       
       /* Prepare the stepper driver to be ready to perform a command */
       StepperMotorBoardHandle->StepperMotorDriverHandle[device]->Command->PrepareRun(device, L6470_DIR_FWD_ID, Speed);
@@ -308,47 +311,44 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		
 		// Wait
 		for (int i = 0; i < 100; i++){}
-			
-		// Reverse direction
-		for (board = EXPBRD_ID(0); board <= EXPBRD_ID(EXPBRD_MOUNTED_NR-1); board++)
-		{
-			
-			for (device = L6470_ID(0); device <= L6470_ID(L6470DAISYCHAINSIZE-1); device++)
-			{
-				/* Get the parameters for the motor connected with the actual stepper motor driver of the actual stepper motor expansion board */
-				MotorParameterDataSingle = MotorParameterDataGlobal+((board*L6470DAISYCHAINSIZE)+device);
-				
-				/* Set Speed */
-				Speed = Step_s_2_Speed(MotorParameterDataSingle->speed);
-				
-				eL6470_DirId_t newDir;
-				if (GPIO_Pin == GPIO_PIN_4)
-				{
-					newDir = L6470_DIR_FWD_ID;
-				}
-				else
-				{
-					newDir = L6470_DIR_REV_ID;
-				}
-				
-				/* Prepare the stepper driver to be ready to perform a command */
-				StepperMotorBoardHandle->StepperMotorDriverHandle[device]->Command->PrepareRun(device, newDir, Speed);
-			}
-			
-			StepperMotorBoardHandle->Command->PerformPreparedApplicationCommand();
-		}
 		
-		/*for (board = EXPBRD_ID(0); board <= EXPBRD_ID(EXPBRD_MOUNTED_NR-1); board++)
+		if (!(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4) == 1 && HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6) == 1))
 		{
-			
-			for (device = L6470_ID(0); device <= L6470_ID(L6470DAISYCHAINSIZE-1); device++)
+			// Reverse direction
+			for (board = EXPBRD_ID(0); board <= EXPBRD_ID(EXPBRD_MOUNTED_NR-1); board++)
 			{
-				// Prepare the stepper driver to be ready to perform a commandS
-				StepperMotorBoardHandle->StepperMotorDriverHandle[device]->Command->PrepareHardHiZ(device);
+				
+				for (device = L6470_ID(0); device <= L6470_ID(L6470DAISYCHAINSIZE-1); device++)
+				{
+					/* Get the parameters for the motor connected with the actual stepper motor driver of the actual stepper motor expansion board */
+					MotorParameterDataSingle = MotorParameterDataGlobal+((board*L6470DAISYCHAINSIZE)+device);
+					
+					/* Set Speed */
+					Speed = Step_s_2_Speed(MotorParameterDataSingle->speed)* AMP_SPEED_FACTOR;
+					
+					eL6470_DirId_t newDir;
+					
+					if (GPIO_Pin == GPIO_PIN_4)
+					{
+						newDir = L6470_DIR_FWD_ID;
+					}
+					else
+					{
+						newDir = L6470_DIR_REV_ID;
+					}
+					
+					/* Prepare the stepper driver to be ready to perform a command */
+					StepperMotorBoardHandle->StepperMotorDriverHandle[device]->Command->PrepareRun(device, newDir, Speed);
+				}
+				
+				StepperMotorBoardHandle->Command->PerformPreparedApplicationCommand();
 			}
-			
-			StepperMotorBoardHandle->Command->PerformPreparedApplicationCommand();
-		}*/
+		}
+		else
+		{
+			HAL_NVIC_DisableIRQ(EXTI4_IRQn);
+			HAL_NVIC_DisableIRQ(EXTI9_5_IRQn);
+		}
 
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_RESET);
 	}
