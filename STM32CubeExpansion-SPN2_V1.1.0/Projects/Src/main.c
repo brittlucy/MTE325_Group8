@@ -36,8 +36,9 @@
 #include "example.h"
 #include "example_usart.h"
 #include "stm32f4xx_hal_adc.h"
+#include "xnucleoihm02a1_interface.c"
 
-#define TEST_MOTOR	//!< Comment out this line to test the ADC
+// #define TEST_MOTOR	//!< Comment out this line to test the ADC
 
 /**
   * @defgroup   MotionControl
@@ -233,13 +234,12 @@ void EXTI9_5_IRQHandler(void)
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_6);
 }
 
-#define AMP_SPEED_FACTOR 1
 #define MPR_4     4			  //!< 4 Motor Movements Per Revolution
 #define MPR_8     8			  //!< 8 Motor Movements Per Revolution
 #define DELAY_1   1000		//!< Delay time 1st option
 #define DELAY_2   2500		//!< Delay time 2nd option
 #define DELAY_3   10000   //!< Delay time 3rd option
-uint32_t Speed;
+uint32_t currentSpeed = 10000;
 uint8_t board, device;
 
 uint8_t id;
@@ -281,11 +281,8 @@ void moveMotors(void)
       /* Get the parameters for the motor connected with the actual stepper motor driver of the actual stepper motor expansion board */
       MotorParameterDataSingle = MotorParameterDataGlobal+((board*L6470DAISYCHAINSIZE)+device);
       
-      /* Set Speed */
-      Speed = Step_s_2_Speed(MotorParameterDataSingle->speed) * AMP_SPEED_FACTOR;
-      
       /* Prepare the stepper driver to be ready to perform a command */
-      StepperMotorBoardHandle->StepperMotorDriverHandle[device]->Command->PrepareRun(device, L6470_DIR_FWD_ID, Speed);
+      StepperMotorBoardHandle->StepperMotorDriverHandle[device]->Command->PrepareRun(device, L6470_DIR_FWD_ID, currentSpeed);
     }
     
     StepperMotorBoardHandle->Command->PerformPreparedApplicationCommand();
@@ -323,9 +320,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 					/* Get the parameters for the motor connected with the actual stepper motor driver of the actual stepper motor expansion board */
 					MotorParameterDataSingle = MotorParameterDataGlobal+((board*L6470DAISYCHAINSIZE)+device);
 					
-					/* Set Speed */
-					Speed = Step_s_2_Speed(MotorParameterDataSingle->speed)* AMP_SPEED_FACTOR;
-					
 					eL6470_DirId_t newDir;
 					
 					if (GPIO_Pin == GPIO_PIN_4)
@@ -338,7 +332,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 					}
 					
 					/* Prepare the stepper driver to be ready to perform a command */
-					StepperMotorBoardHandle->StepperMotorDriverHandle[device]->Command->PrepareRun(device, newDir, Speed);
+					StepperMotorBoardHandle->StepperMotorDriverHandle[device]->Command->PrepareRun(device, newDir, currentSpeed);
 				}
 				
 				StepperMotorBoardHandle->Command->PerformPreparedApplicationCommand();
@@ -352,6 +346,21 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_RESET);
 	}
+}
+
+// FOR 12 BIT RESOLUTION ONLY, change threshold ADC values if changing resolution accordingly
+uint32_t calcNewSpeed(uint16_t ADCVal)
+{
+	if (ADCVal < 819)
+		return 0;
+	else if (ADCVal < 1638)
+		return 2500;
+	else if (ADCVal < 2457)
+		return 5000;
+	else if (ADCVal < 3276)
+		return 7500;
+	else
+		return 10000;
 }
 
 /**
@@ -394,6 +403,8 @@ int main(void)
 	
 	// pollForRisingEdge();
 	moveMotors();
+	
+	MX_ADC1_Init();
   
   /* Infinite loop */
   while (1)
@@ -411,6 +422,8 @@ int main(void)
 		USART_Transmit(&huart2, " ADC Read: ");
 	  USART_Transmit(&huart2, num2hex(myADCVal, WORD_F));
 	  USART_Transmit(&huart2, " \n\r");
+		currentSpeed = calcNewSpeed(myADCVal);
+
 #endif			
   }
 #endif

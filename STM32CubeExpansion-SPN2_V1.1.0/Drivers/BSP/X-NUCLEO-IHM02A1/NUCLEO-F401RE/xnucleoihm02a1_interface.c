@@ -402,17 +402,22 @@ void MX_ADC1_Init(void)
     /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion) 
     */
   hadc1.Instance = ADC1;
-  /*hadc1.Init.ClockPrescaler = ;
-  hadc1.Init.Resolution = ;
-  hadc1.Init.ScanConvMode = ;
-  hadc1.Init.ContinuousConvMode = ;
-  hadc1.Init.DiscontinuousConvMode = ;
-  hadc1.Init.ExternalTrigConvEdge = ;
-  hadc1.Init.DataAlign = ;
-  hadc1.Init.NbrOfConversion = ;
-  hadc1.Init.DMAContinuousRequests = ;
-  hadc1.Init.EOCSelection = ;
-  HAL_ADC_Init(&hadc1); */
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV8;
+	// Change the frequency of ADCCLK, clock is generated form the APB2 clock divided by the prescaler.
+	// APB2 max 84MHz	84/8 = 10.5MHz = 95ns
+
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+	// 12 bit ADC, analog conversion to 4096 steps (0 to 4095). This resolution is configurable to 12-bit, 10-bit, 8-bit or 6-bit 
+	// 12 bits: 2+12 = 15 ADCCLK cycles = 1.425µs
+  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE ;
+  hadc1.Init.DiscontinuousConvMode = DISABLE ;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE; //software trigger
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT ;
+  hadc1.Init.NbrOfConversion =  1;
+  hadc1.Init.DMAContinuousRequests = ENABLE;
+  hadc1.Init.EOCSelection = DISABLE;
+  HAL_ADC_Init(&hadc1);
 
     /**Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time. 
     */
