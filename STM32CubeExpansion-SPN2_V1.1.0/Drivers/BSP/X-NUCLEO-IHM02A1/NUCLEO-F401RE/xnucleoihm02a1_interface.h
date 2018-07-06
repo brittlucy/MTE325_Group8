@@ -188,6 +188,8 @@ extern sL6470_GPIO L6470_nFLAG_GPIO;
 extern sL6470_GPIO L6470_nCS_GPIO;
 extern sL6470_GPIO L6470_nCS_GPIO_Array[];
 
+void MX_ADC1_Init(void);
+
 /**
   * @}
   */ /* End of NUCLEO_Exported_Variables */

@@ -36,7 +36,7 @@
 #include "example.h"
 #include "example_usart.h"
 #include "stm32f4xx_hal_adc.h"
-#include "xnucleoihm02a1_interface.c"
+#include "xnucleoihm02a1_interface.h"
 
 // #define TEST_MOTOR	//!< Comment out this line to test the ADC
 
@@ -354,13 +354,13 @@ uint32_t calcNewSpeed(uint16_t ADCVal)
 	if (ADCVal < 819)
 		return 0;
 	else if (ADCVal < 1638)
-		return 2500;
-	else if (ADCVal < 2457)
 		return 5000;
-	else if (ADCVal < 3276)
-		return 7500;
-	else
+	else if (ADCVal < 2457)
 		return 10000;
+	else if (ADCVal < 3276)
+		return 15000;
+	else
+		return 20000;
 }
 
 /**
@@ -421,8 +421,11 @@ int main(void)
 		myADCVal = Read_ADC();
 		USART_Transmit(&huart2, " ADC Read: ");
 	  USART_Transmit(&huart2, num2hex(myADCVal, WORD_F));
-	  USART_Transmit(&huart2, " \n\r");
+		USART_Transmit(&huart2, " \n\r");
 		currentSpeed = calcNewSpeed(myADCVal);
+		USART_Transmit(&huart2, num2hex(currentSpeed, DOUBLEWORD_F));
+		USART_Transmit(&huart2, " \n\r");
+		
 
 #endif			
   }

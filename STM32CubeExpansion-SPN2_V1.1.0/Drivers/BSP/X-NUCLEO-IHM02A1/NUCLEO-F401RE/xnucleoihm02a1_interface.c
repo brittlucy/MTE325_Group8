@@ -80,7 +80,6 @@ SPI_HandleTypeDef hspi2;
 
 void SystemClock_Config(void);
 void MX_GPIO_Init(void);
-void MX_ADC1_Init(void);
 void MX_SPI_Init(void);
 void MX_SPI1_Init(void);
 void MX_SPI2_Init(void);
