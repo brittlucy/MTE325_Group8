@@ -240,6 +240,7 @@ void EXTI9_5_IRQHandler(void)
 #define DELAY_2   2500		//!< Delay time 2nd option
 #define DELAY_3   10000   //!< Delay time 3rd option
 uint32_t currentSpeed = 10000;
+eL6470_DirId_t currentDirection = L6470_DIR_FWD_ID;
 uint8_t board, device;
 
 uint8_t id;
@@ -282,7 +283,7 @@ void moveMotors(void)
       MotorParameterDataSingle = MotorParameterDataGlobal+((board*L6470DAISYCHAINSIZE)+device);
       
       /* Prepare the stepper driver to be ready to perform a command */
-      StepperMotorBoardHandle->StepperMotorDriverHandle[device]->Command->PrepareRun(device, L6470_DIR_FWD_ID, currentSpeed);
+      StepperMotorBoardHandle->StepperMotorDriverHandle[device]->Command->PrepareRun(device, currentDirection, currentSpeed);
     }
     
     StepperMotorBoardHandle->Command->PerformPreparedApplicationCommand();
@@ -320,19 +321,17 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 					/* Get the parameters for the motor connected with the actual stepper motor driver of the actual stepper motor expansion board */
 					MotorParameterDataSingle = MotorParameterDataGlobal+((board*L6470DAISYCHAINSIZE)+device);
 					
-					eL6470_DirId_t newDir;
-					
 					if (GPIO_Pin == GPIO_PIN_4)
 					{
-						newDir = L6470_DIR_FWD_ID;
+						currentDirection = L6470_DIR_FWD_ID;
 					}
 					else
 					{
-						newDir = L6470_DIR_REV_ID;
+						currentDirection = L6470_DIR_REV_ID;
 					}
 					
 					/* Prepare the stepper driver to be ready to perform a command */
-					StepperMotorBoardHandle->StepperMotorDriverHandle[device]->Command->PrepareRun(device, newDir, currentSpeed);
+					StepperMotorBoardHandle->StepperMotorDriverHandle[device]->Command->PrepareRun(device, currentDirection, currentSpeed);
 				}
 				
 				StepperMotorBoardHandle->Command->PerformPreparedApplicationCommand();
@@ -351,16 +350,28 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 // FOR 12 BIT RESOLUTION ONLY, change threshold ADC values if changing resolution accordingly
 uint32_t calcNewSpeed(uint16_t ADCVal)
 {
-	if (ADCVal < 819)
-		return 0;
-	else if (ADCVal < 1638)
-		return 5000;
-	else if (ADCVal < 2457)
-		return 10000;
-	else if (ADCVal < 3276)
-		return 15000;
+	if (ADCVal < 2340)
+	{
+		currentDirection = L6470_DIR_FWD_ID;
+		if (ADCVal < 585)
+			return 20000;
+		else if (ADCVal < 1170)
+			return 13334;
+		else if (ADCVal < 1755)
+			return 6667;
+		else
+			return 0;
+	}
 	else
-		return 20000;
+	{
+		currentDirection = L6470_DIR_REV_ID;
+		if (ADCVal < 2925)
+			return 6667;
+		else if (ADCVal < 3510)
+			return 13334;
+		else
+			return 20000;
+	}
 }
 
 /**
@@ -419,11 +430,13 @@ int main(void)
 		
 		uint16_t myADCVal;
 		myADCVal = Read_ADC();
+		currentSpeed = calcNewSpeed(myADCVal);
 		USART_Transmit(&huart2, " ADC Read: ");
 	  USART_Transmit(&huart2, num2hex(myADCVal, WORD_F));
-		USART_Transmit(&huart2, " \n\r");
-		currentSpeed = calcNewSpeed(myADCVal);
+		USART_Transmit(&huart2, " Speed Value: ");
 		USART_Transmit(&huart2, num2hex(currentSpeed, DOUBLEWORD_F));
+		USART_Transmit(&huart2, " Direction: ");
+		USART_Transmit(&huart2, num2hex(currentDirection, HALFBYTE_F));
 		USART_Transmit(&huart2, " \n\r");
 		
 

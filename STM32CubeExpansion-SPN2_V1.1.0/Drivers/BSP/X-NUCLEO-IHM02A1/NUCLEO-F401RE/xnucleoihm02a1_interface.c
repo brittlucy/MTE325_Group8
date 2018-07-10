@@ -402,12 +402,12 @@ void MX_ADC1_Init(void)
     */
   hadc1.Instance = ADC1;
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV8;
-	// Change the frequency of ADCCLK, clock is generated form the APB2 clock divided by the prescaler.
+	// Change the frequency of ADCCLK, clock is generated from the APB2 clock divided by the prescaler.
 	// APB2 max 84MHz	84/8 = 10.5MHz = 95ns
 
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
 	// 12 bit ADC, analog conversion to 4096 steps (0 to 4095). This resolution is configurable to 12-bit, 10-bit, 8-bit or 6-bit 
-	// 12 bits: 2+12 = 15 ADCCLK cycles = 1.425µs
+	// 12 bits: 3+12 = 15 ADCCLK cycles = 1.425µs
   hadc1.Init.ScanConvMode = DISABLE;
   hadc1.Init.ContinuousConvMode = ENABLE ;
   hadc1.Init.DiscontinuousConvMode = DISABLE ;
