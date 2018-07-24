@@ -431,6 +431,21 @@ int main(void)
 		uint16_t myADCVal;
 		myADCVal = Read_ADC();
 		currentSpeed = calcNewSpeed(myADCVal);
+		// Set new motor speed
+		for (board = EXPBRD_ID(0); board <= EXPBRD_ID(EXPBRD_MOUNTED_NR-1); board++)
+  {
+    
+    for (device = L6470_ID(0); device <= L6470_ID(L6470DAISYCHAINSIZE-1); device++)
+    {
+      /* Get the parameters for the motor connected with the actual stepper motor driver of the actual stepper motor expansion board */
+      MotorParameterDataSingle = MotorParameterDataGlobal+((board*L6470DAISYCHAINSIZE)+device);
+      
+      /* Prepare the stepper driver to be ready to perform a command */
+      StepperMotorBoardHandle->StepperMotorDriverHandle[device]->Command->PrepareRun(device, currentDirection, currentSpeed);
+    }
+    
+    StepperMotorBoardHandle->Command->PerformPreparedApplicationCommand();
+  }
 		USART_Transmit(&huart2, " ADC Read: ");
 	  USART_Transmit(&huart2, num2hex(myADCVal, WORD_F));
 		USART_Transmit(&huart2, " Speed Value: ");
